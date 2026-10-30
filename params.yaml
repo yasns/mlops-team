@@ -1,0 +1,7 @@
+data:
+  dataset: PolyAI/banking77
+  revision: 1846984189f2bc0ac51c6fc3a600fa9e1714e0c6
+train:
+  ngram_max: 2 # TF-IDF uses word n-grams up to this length
+  C: 10.0 # inverse regularization strength. smaller = simpler model
+  max_iter: 1000
