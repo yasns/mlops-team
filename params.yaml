@@ -5,3 +5,5 @@ train:
   ngram_max: 2 # TF-IDF uses word n-grams up to this length
   C: 10.0 # inverse regularization strength. smaller = simpler model
   max_iter: 1000
+gate: # minimum per metric in metrics.json
+  accuracy: 0.85
