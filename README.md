@@ -33,13 +33,23 @@ Pirmą kartą užtrunka kelias minutes, kol atsisiunčiamas MLflow vaizdas.
 ### 4. Prieiga prie MLflow
 Atskirame terminale (palikti veikti):
 ```bash
-kubectl --context kind-mlops-team port-forward -n mlops svc/mlflow 5001:5000
+kubectl --context kind-mlops-team port-forward -n mlops svc/mlflow 5005:5000
 ```
-MLflow UI: http://127.0.0.1:5001
+MLflow UI: http://127.0.0.1:5005
 
 ### 5. Pipeline'as
+`MLFLOW_TRACKING_URI` nustatomas `.envrc` faile. 
+
+a) Jei naudojate direnv: 
 ```bash
-export MLFLOW_TRACKING_URI=http://127.0.0.1:5001
+direnv allow
+```
+b) Be direnv: 
+```bash 
+source .envrc
+```
+Tada:
+```bash
 dvc repro
 ```
 Jei niekas nepasikeitė, `dvc repro` praleidžia visus etapus. Naujam run'ui su tais pačiais parametrais – `dvc repro -f`.
@@ -54,7 +64,7 @@ Atkuria to run'o kodą (git), duomenis (DVC) ir parametrus, perleidžia pipeline
 ## Rezultatai
 | Kas | Kur |
 |-----|-----|
-| MLflow UI (run'ai, parametrai, metrikos, modeliai) | http://127.0.0.1:5001, eksperimentas `banking77`, be prisijungimo |
+| MLflow UI (run'ai, parametrai, metrikos, modeliai) | http://127.0.0.1:5005, eksperimentas `banking77`, be prisijungimo |
 | Pipeline'o metrikos | `metrics.json`, `dvc metrics show` |
 | Reikalavimai (FR, NFR, KPI) | `docs/requirements.md` |
 
