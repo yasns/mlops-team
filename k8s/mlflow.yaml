@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mlflow-data
-  namespace: mlops
+  namespace: mlops-team
 spec:
   accessModes: [ReadWriteOnce]
   resources:
@@ -13,7 +13,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: mlflow
-  namespace: mlops
+  namespace: mlops-team
 spec:
   replicas: 1
   strategy:
@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: ghcr.io/mlflow/mlflow:v3.15.2 # same version as the client
+          image: ghcr.io/mlflow/mlflow:v3.18.0 # same version as the client
           command: ["mlflow", "server"]
           args:
             - "--backend-store-uri=sqlite:////mlflow/mlflow.db"
@@ -36,7 +36,7 @@ spec:
             - "--host=0.0.0.0"
             - "--port=5000"
             - "--workers=1" # default 4 workers need ~2Gi
-            - "--allowed-hosts=mlflow.mlops.svc.cluster.local:*,localhost:*,127.0.0.1:*"
+            - "--allowed-hosts=mlflow.mlops-team.svc.cluster.local:*,localhost:*,127.0.0.1:*"
           ports:
             - containerPort: 5000
           volumeMounts:
@@ -59,7 +59,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: mlflow
-  namespace: mlops
+  namespace: mlops-team
 spec:
   selector:
     app: mlflow
