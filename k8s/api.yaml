@@ -20,7 +20,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: api
-          image: ghcr.io/yasns/mlops-team:sha-24df67d # local build until the first CD run bumps it
+          image: ghcr.io/yasns/mlops-team:sha-24df67d # bumped by CD
           envFrom:
             - secretRef:
                 name: mlflow-credentials # MLFLOW_TRACKING_URI

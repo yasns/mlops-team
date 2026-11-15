@@ -76,13 +76,6 @@ kubectl --context kind-mlops-team create secret generic mlflow-credentials -n ml
 ```
 API modelį `models:/banking77@champion` nuskaito iš registro Pod'o paleidimo metu.
 
-Kol CD dar nepaleistas, `k8s/api.yaml` rodo į lokalų vaizdą – jį reikia sukurti ir įkelti į klasterį:
-```bash
-docker build -f docker/Dockerfile.serve -t ghcr.io/yasns/mlops-team:local .
-kind load docker-image ghcr.io/yasns/mlops-team:local --name mlops-team
-```
-Po pirmo CD paleidimo manifestas rodo į `ghcr.io/yasns/mlops-team:sha-<commit>` ir šio žingsnio nebereikia.
-
 ```bash
 kubectl --context kind-mlops-team apply -f k8s/api.yaml
 kubectl --context kind-mlops-team rollout status deployment/inference -n mlops-team

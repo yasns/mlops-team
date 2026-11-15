@@ -1,5 +1,5 @@
 mlflow==3.18.0
-scikit-learn>=1.5
+scikit-learn==1.9.1
 pandas>=2.0
 fastapi>=0.100
 uvicorn>=0.23

@@ -8,11 +8,11 @@ RUN useradd --create-home --uid 1000 mluser
 WORKDIR /app
 RUN chown mluser:mluser /app
 
-COPY docker/requirements-train.txt .
-RUN pip install --no-cache-dir --no-compile -r requirements-train.txt
+COPY docker/requirements-serve.txt .
+RUN pip install --no-cache-dir --no-compile -r requirements-serve.txt
 
-COPY --chown=mluser:mluser params.yaml ./
-COPY --chown=mluser:mluser src/ src/
+COPY --chown=mluser:mluser src/serve.py src/serve.py
 
 USER mluser
-CMD ["python", "src/train.py"]
+EXPOSE 8000
+CMD ["uvicorn", "serve:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000"]
