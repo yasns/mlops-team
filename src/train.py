@@ -31,7 +31,7 @@ def git_commit() -> str:
         return subprocess.check_output(
             ["git", "rev-parse", "--short=8", "HEAD"], cwd=ROOT, text=True
         ).strip()
-    except Exception:
+    except (OSError, subprocess.CalledProcessError):  # no git / no .git in the image
         return "unknown"
 
 
@@ -39,8 +39,17 @@ def dvc_md5(dvc_file: Path) -> str:
     """md5 of the raw dataset as recorded by `dvc add` - the join key to dvc.lock."""
     try:
         return yaml.safe_load(dvc_file.read_text())["outs"][0]["md5"]
-    except Exception:
+    except (OSError, KeyError, TypeError):
         return "untracked"
+
+
+def build_model(ngram_max: int, C: float, max_iter: int):
+    return make_pipeline(
+        make_column_transformer(  # by name: a bare TF-IDF reads a DataFrame's column names
+            (TfidfVectorizer(ngram_range=(1, ngram_max)), "text")
+        ),
+        LogisticRegression(C=C, max_iter=max_iter),
+    )
 
 
 def main() -> None:
@@ -76,12 +85,7 @@ def main() -> None:
             context="training",
         )
 
-        model = make_pipeline(
-            make_column_transformer(  # by name: a bare TF-IDF reads a DataFrame's column names
-                (TfidfVectorizer(ngram_range=(1, params["ngram_max"])), "text")
-            ),
-            LogisticRegression(C=params["C"], max_iter=params["max_iter"]),
-        )
+        model = build_model(**params)
         model.fit(x_train, y_train)
         preds = model.predict(x_test)
         metrics = {
