@@ -32,6 +32,7 @@ jobs:
     runs-on: self-hosted
     outputs:
       run_id: ${{ steps.repro.outputs.run_id }}
+      runner: ${{ runner.name }}
     steps:
       - uses: actions/checkout@v5
       - name: venv (kept between runs)
@@ -97,7 +98,7 @@ jobs:
 
   deploy: # @champion -> new version, roll the API
     needs: [train, release]
-    runs-on: self-hosted
+    runs-on: [self-hosted, "${{ needs.train.outputs.runner }}"] # same laptop as train: only its MLflow has the run
     steps:
       - uses: actions/checkout@v5
         with:
