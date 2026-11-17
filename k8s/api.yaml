@@ -20,7 +20,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: api
-          image: ghcr.io/yasns/mlops-team:sha-c671916 # bumped by CD
+          image: ghcr.io/yasns/mlops-team:sha-f6ee202 # bumped by CD
           envFrom:
             - secretRef:
                 name: mlflow-credentials # MLFLOW_TRACKING_URI
