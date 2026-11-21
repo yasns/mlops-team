@@ -28,6 +28,14 @@ LATENCY = Histogram(
     ["path"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
 )
+PREDICTIONS = Counter(
+    "banking77_predictions_total", "Predictions by intent", ["intent", "model_version"]
+)
+CONFIDENCE = Histogram(
+    "banking77_prediction_confidence",
+    "Top-class probability of each prediction",
+    buckets=(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99),
+)
 
 
 def load_champion() -> None:
@@ -86,8 +94,12 @@ def predict(req: PredictRequest) -> dict:
         raise HTTPException(status_code=503, detail="model not loaded")
     proba = model.predict_proba(pd.DataFrame({"text": [req.text]}))[0]
     best = proba.argmax()
+    intent = str(model.classes_[best])
+    confidence = float(proba[best])
+    PREDICTIONS.labels(intent, str(state["version"])).inc()
+    CONFIDENCE.observe(confidence)
     return {
-        "intent": str(model.classes_[best]),
-        "confidence": round(float(proba[best]), 4),
+        "intent": intent,
+        "confidence": round(confidence, 4),
         "model_version": state["version"],
     }
