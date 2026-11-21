@@ -1,3 +1,6 @@
+import json
+import logging
+
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
@@ -37,3 +40,48 @@ def test_empty_text_rejected(client):
 def test_health_503_without_model():
     serve.state.update(model=None, error="no model in test")
     assert TestClient(serve.app).get("/health").status_code == 503
+
+
+def test_metrics_exposes_api_and_model_metrics(client):
+    client.post("/predict", json={"text": "my card was declined"})
+    r = client.get("/metrics")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/plain")
+    body = r.text
+    assert 'banking77_api_requests_total{method="POST",path="/predict",status="200"}' in body
+    assert 'banking77_api_request_duration_seconds_bucket{le="+Inf",path="/predict"}' in body
+    assert 'banking77_predictions_total{intent="card",model_version="0"}' in body
+    assert "banking77_prediction_confidence_count" in body
+    
+
+@pytest.fixture
+def log_lines():
+    lines: list[str] = []
+
+    class ListHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            lines.append(self.format(record))
+
+    handler = ListHandler()
+    handler.setFormatter(serve.JsonFormatter())
+    serve.logger.addHandler(handler)
+    yield lines
+    serve.logger.removeHandler(handler)
+
+
+def test_predict_writes_json_log_line(client, log_lines):
+    client.post("/predict", json={"text": "my card was declined"})
+    assert len(log_lines) == 1
+    entry = json.loads(log_lines[0])
+    assert entry["event"] == "request"
+    assert entry["path"] == "/predict"
+    assert entry["status"] == 200
+    assert entry["intent"] == "card"
+    assert entry["model_version"] == 0
+    assert entry["text"] == "my card was declined"
+    assert "request_id" in entry and "duration_ms" in entry
+
+
+def test_health_is_not_logged(client, log_lines):
+    client.get("/health")
+    assert log_lines == []
