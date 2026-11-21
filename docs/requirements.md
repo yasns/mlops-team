@@ -50,10 +50,10 @@ Sistema priskiria banko klientų užklausas vienam iš 77 ketinimų (intents). D
 |---|---|---|---|
 | NFR-01 | src/evaluate.py → metrics.json | metrics.json, MLflow run | 0.8928 (commit 973b953) |
 | NFR-02 | src/gate.py CI; red run su C: 0.0001 | docs/gate-red.log, Actions screenshot | TBD |
-| NFR-03 | scripts/loadtest.py … 200 10 | docs/load-test.json (p95_ms) | TBD |
-| NFR-04 | scripts/loadtest.py … 200 10 | docs/load-test.json (throughput_rps) | TBD |
-| NFR-05 | scripts/loadtest.py baigiasi be klaidos | docs/load-test.json | TBD |
-| NFR-06 | time (promote.py rollback + rollout restart + rollout status) | docs/rollback.md (/health prieš / po) | TBD |
+| NFR-03 | scripts/loadtest.py … 200 10 | docs/load-test.json (p95_ms) | 51.8 |
+| NFR-04 | scripts/loadtest.py … 200 10 | docs/load-test.json (throughput_rps) | 232.9 |
+| NFR-05 | scripts/loadtest.py baigiasi be klaidos | docs/load-test.json | 0 klaidų |
+| NFR-06 | time (promote.py rollback + rollout restart + rollout status) | docs/rollback.md (/health prieš / po) | 27s |
 | NFR-07 | loadtest.py + kubectl get hpa -w | docs/hpa.md + screenshot | TBD |
 | NFR-08 | python reproduce.py <run_id> | MLflow run su tag reproduces=<run_id> | TBD |
 | NFR-09 | MLflow run Tags skiltis | MLflow UI | 100 % |
