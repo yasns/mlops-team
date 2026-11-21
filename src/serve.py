@@ -3,19 +3,62 @@
 MLFLOW_TRACKING_URI=http://127.0.0.1:5005 uvicorn serve:app --app-dir src --port 8000
 """
 
+import json
+import logging
 import os
+import time
+import uuid
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 import mlflow
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from mlflow import MlflowClient
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
 MODEL_NAME = os.environ.get("MODEL_NAME", "banking77")
 MODEL_ALIAS = os.environ.get("MODEL_ALIAS", "champion")
 
 state = {"model": None, "version": None, "run_id": None, "error": None}
+
+REQUESTS = Counter(
+    "banking77_api_requests_total", "HTTP requests", ["method", "path", "status"]
+)
+LATENCY = Histogram(
+    "banking77_api_request_duration_seconds",
+    "Request latency in seconds",
+    ["path"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
+)
+PREDICTIONS = Counter(
+    "banking77_predictions_total", "Predictions by intent", ["intent", "model_version"]
+)
+CONFIDENCE = Histogram(
+    "banking77_prediction_confidence",
+    "Top-class probability of each prediction",
+    buckets=(0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99),
+)
+
+
+class JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "ts": datetime.now(UTC).isoformat(timespec="milliseconds"),
+            "level": record.levelname,
+            "event": record.getMessage(),
+        }
+        payload.update(getattr(record, "fields", {}))
+        return json.dumps(payload)
+
+
+logger = logging.getLogger("banking77")
+_handler = logging.StreamHandler()
+_handler.setFormatter(JsonFormatter())
+logger.addHandler(_handler)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 
 def load_champion() -> None:
@@ -37,6 +80,32 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Banking77 intent classifier", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def observe(request: Request, call_next):
+    request_id = uuid.uuid4().hex[:12]
+    request.state.prediction = {}
+    start = time.perf_counter()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        return response
+    finally:
+        duration = time.perf_counter() - start
+        path = request.url.path
+        REQUESTS.labels(request.method, path, str(status)).inc()
+        LATENCY.labels(path).observe(duration)
+        if path not in ("/health", "/metrics"):
+            logger.info("request", extra={"fields": {
+                "request_id": request_id,
+                "method": request.method,
+                "path": path,
+                "status": status,
+                "duration_ms": round(duration * 1000, 2),
+                **request.state.prediction,
+            }})
+
+
 class PredictRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
 
@@ -53,15 +122,30 @@ def health() -> dict:
     }
 
 
+@app.get("/metrics")
+def metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.post("/predict")
-def predict(req: PredictRequest) -> dict:
+def predict(req: PredictRequest, request: Request) -> dict:
     model = state["model"]
     if model is None:
         raise HTTPException(status_code=503, detail="model not loaded")
     proba = model.predict_proba(pd.DataFrame({"text": [req.text]}))[0]
     best = proba.argmax()
+    intent = str(model.classes_[best])
+    confidence = float(proba[best])
+    PREDICTIONS.labels(intent, str(state["version"])).inc()
+    CONFIDENCE.observe(confidence)
+    request.state.prediction = {
+        "intent": intent,
+        "confidence": round(confidence, 4),
+        "model_version": state["version"],
+        "text": req.text,
+    }
     return {
-        "intent": str(model.classes_[best]),
-        "confidence": round(float(proba[best]), 4),
+        "intent": intent,
+        "confidence": round(confidence, 4),
         "model_version": state["version"],
     }
