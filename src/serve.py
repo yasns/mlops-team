@@ -4,18 +4,30 @@ MLFLOW_TRACKING_URI=http://127.0.0.1:5005 uvicorn serve:app --app-dir src --port
 """
 
 import os
+import time
 from contextlib import asynccontextmanager
 
 import mlflow
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from mlflow import MlflowClient
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 from pydantic import BaseModel, Field
 
 MODEL_NAME = os.environ.get("MODEL_NAME", "banking77")
 MODEL_ALIAS = os.environ.get("MODEL_ALIAS", "champion")
 
 state = {"model": None, "version": None, "run_id": None, "error": None}
+
+REQUESTS = Counter(
+    "banking77_api_requests_total", "HTTP requests", ["method", "path", "status"]
+)
+LATENCY = Histogram(
+    "banking77_api_request_duration_seconds",
+    "Request latency in seconds",
+    ["path"],
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5),
+)
 
 
 def load_champion() -> None:
@@ -37,6 +49,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Banking77 intent classifier", lifespan=lifespan)
 
 
+@app.middleware("http")
+async def observe(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    REQUESTS.labels(request.method, request.url.path, str(response.status_code)).inc()
+    LATENCY.labels(request.url.path).observe(time.perf_counter() - start)
+    return response
+
+
 class PredictRequest(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
 
@@ -51,6 +72,11 @@ def health() -> dict:
         "version": state["version"],
         "run_id": state["run_id"],
     }
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.post("/predict")
