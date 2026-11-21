@@ -15,4 +15,4 @@ COPY --chown=mluser:mluser src/serve.py src/serve.py
 
 USER mluser
 EXPOSE 8000
-CMD ["uvicorn", "serve:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
+CMD ["uvicorn", "serve:app", "--app-dir", "src", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
